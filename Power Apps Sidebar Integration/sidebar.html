@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Power Apps Sidebar</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="sidebar-toolbar" id="sidebar-toolbar">
+    <div class="toolbar-left">
+      <button class="toolbar-button" id="refresh-button" title="Refresh Power App">🔄</button>
+    </div>
+    <div class="toolbar-right">
+      <span id="status-indicator">●</span>
+    </div>
+  </div>
+  <iframe id="powerapp-iframe" frameborder="0"></iframe>
+  <script type="module" src="sidebar.js"></script>
+</body>
+</html>

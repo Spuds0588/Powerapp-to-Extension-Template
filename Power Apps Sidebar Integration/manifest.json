@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "Power Apps Sidebar Integration",
+  "version": "1.2.0",
+  "description": "Embeds a Power App in the browser sidebar, passing active tab context.",
+  "permissions": [
+    "sidePanel",
+    "scripting",
+    "tabs",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "Open Power Apps Sidebar"
+  },
+  "side_panel": {
+    "default_path": "sidebar.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content-script.js"],
+      "run_at": "document_end"
+    }
+  ]
+}
