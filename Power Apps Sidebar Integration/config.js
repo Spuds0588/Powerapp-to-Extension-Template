@@ -2,7 +2,7 @@
 
 export const config = {
   // REQUIRED: The base URL of your Power App.
-  powerAppUrl: "https://apps.powerapps.com/play/e/default-89d3503d-9ffc-4fc1-ac69-f1be7c70d8cd/a/4ef44cfa-83ae-4361-800b-23c3e64b0c4d?tenantId=89d3503d-9ffc-4fc1-ac69-f1be7c70d8cd&hint=b02e73d3-ef9b-45d4-a94d-af3c4930e49f&sourcetime=1760235721579",  
+  powerAppUrl: "powerapps-URL-Goes-Here",  
   // --- PARAMETER CONFIGURATION ---
   // Control which parameters are passed to the Power App to prevent overload
   parameters: {
@@ -10,7 +10,7 @@ export const config = {
     includeTabUrl: true,
     
     // Pass the JSON object of element IDs and values as 'tabBody' parameter
-    includeTabBody: true,
+    includeTabBody: false,
     
     // Specific IDs to track and include in tabBody (instead of all IDs)
     // Add the IDs you want to monitor here
@@ -20,12 +20,10 @@ export const config = {
       // "password", 
       // "submit-button",
       // "form-field-1"
-      "loanStageTitle",
-      "loan-number"
     ],
     
     // Pass local storage data as 'tabLocalStorage' parameter
-    includeLocalStorage: true,
+    includeLocalStorage: false,
     
     // Specific local storage keys to track and include in tabLocalStorage
     // Add the keys you want to monitor here
@@ -35,7 +33,6 @@ export const config = {
       // "sessionData",
       // "formState",
       // "appSettings"
-      "activeUserId"
     ]
   },
 
@@ -44,10 +41,10 @@ export const config = {
   // Set the desired triggers to 'true' to enable them.
   triggers: {
     // Update when the user switches to a different tab.
-    onTabChange: true,
+    onTabChange: false,
 
     // Update when the URL of the current tab changes (e.g., in a Single Page App).
-    onUrlChange: true,
+    onUrlChange: false,
 
     // Continuously update the current tab on a timer.
     // Optional: Enable for automatic updates every 1-2 seconds
@@ -62,14 +59,13 @@ export const config = {
   // Adds a floating button overlay to specified pages
   floatingButton: {
     // Enable floating button overlay
-    enabled: true,
+    enabled: false,
     
     // Array of URL patterns where floating button should appear
     targetUrls: [
       // Example URLs - replace with your actual URLs:
       // "https://myapp.com/*",
       // "https://*.company.com/*"
-      "https://*"
     ],
     
     // Position of the floating button
@@ -77,7 +73,7 @@ export const config = {
     position: "top-center",
     
     // Button text/icon (emoji or text)
-    text: "⚡Open Test",
+    text: "⚡Button Placeholder Text",
     
     // Button tooltip text
     tooltip: "Open Power Apps Sidebar",
@@ -99,10 +95,12 @@ export const config = {
 
   // (Future Feature) Configuration for the manual refresh button.
   manualRefreshButton: {
-      enabled: true,
+      enabled: false,
       // The button will only be injected on pages matching these patterns.
       // Example: ["https://github.com/*", "https://*.atlassian.net/*"]
-      targetUrls: ['https://umortgage.myarive.com/*']
+      targetUrls: [
+        
+      ]
   }
 };
 
