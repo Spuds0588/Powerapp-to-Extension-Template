@@ -108,6 +108,8 @@ main {
     display: flex;
     flex-direction: column;
     gap: 15px;
+    align-items: center;
+    text-align: center;
 }
 
 .hero-logo {
@@ -137,7 +139,8 @@ main {
     font-size: 1rem;
     color: var(--text-color);
     opacity: 0.85;
-    line-height: 1.5;
+    line-height: 1.6;
+    max-width: 600px;
 }
 
 .hero-cta-btn {
@@ -151,7 +154,7 @@ main {
     border-radius: 6px;
     cursor: pointer;
     transition: all 0.3s ease;
-    align-self: flex-start;
+    align-self: center;
     box-shadow: 0 4px 12px rgba(35, 47, 159, 0.3);
 }
 
@@ -182,15 +185,6 @@ main {
     .hero-content {
         grid-template-columns: 1fr;
         gap: 30px;
-    }
-    
-    .hero-left {
-        text-align: center;
-        align-items: center;
-    }
-    
-    .hero-cta-btn {
-        align-self: center;
     }
 }
 
@@ -451,6 +445,159 @@ main {
     font-size: 14px;
     color: #888;
     font-style: italic;
+}
+
+/* Icon Upload Styles */
+.icon-upload-section {
+    margin: 20px 0;
+}
+
+.icon-choice-container {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 25px;
+}
+
+.icon-choice-option {
+    flex: 1;
+    cursor: pointer;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    padding: 20px;
+    background: #fff;
+    transition: all 0.3s ease;
+    display: block;
+}
+
+.icon-choice-option:hover {
+    border-color: var(--accent-color);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.icon-choice-option.selected {
+    border-color: var(--primary-color);
+    background: rgba(35, 47, 159, 0.05);
+    box-shadow: 0 2px 12px rgba(35, 47, 159, 0.2);
+}
+
+.icon-choice-option input[type="radio"] {
+    display: none;
+}
+
+.icon-choice-content {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.icon-choice-icon {
+    font-size: 32px;
+    line-height: 1;
+}
+
+.icon-choice-text {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.icon-choice-text strong {
+    font-size: 16px;
+    color: var(--text-color);
+}
+
+.icon-choice-text small {
+    font-size: 13px;
+    color: #666;
+}
+
+.custom-icon-upload {
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.file-input {
+    display: block;
+    width: 100%;
+    padding: 10px;
+    border: 2px dashed var(--border-color);
+    border-radius: 6px;
+    background: #fff;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.file-input:hover {
+    border-color: var(--accent-color);
+    background: rgba(89, 100, 166, 0.05);
+}
+
+.file-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
+.icon-preview-container {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    align-items: flex-end;
+    margin-top: 20px;
+    padding: 20px;
+    background: #fff;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.icon-preview-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.icon-preview-item img {
+    border: 2px solid var(--border-color);
+    border-radius: 4px;
+    background: #f0f0f0;
+    padding: 4px;
+    display: block;
+}
+
+.icon-preview-item canvas {
+    border: 2px solid var(--border-color);
+    border-radius: 4px;
+    display: block;
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+}
+
+.icon-preview-item span {
+    font-size: 12px;
+    font-weight: 600;
+    color: #666;
+}
+
+.placeholder-icon-preview {
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+/* Responsive icon upload */
+@media (max-width: 600px) {
+    .icon-choice-container {
+        flex-direction: column;
+    }
+    
+    .icon-preview-container {
+        gap: 15px;
+        padding: 15px;
+    }
 }
 
 /* Test & Preview Section - Grid Layout like Hero */

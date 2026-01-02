@@ -26,6 +26,8 @@ document.addEventListener('DOMContentLoaded', () => {
         powerAppUrl: '', extName: '', extDescription: '',
         includeTabUrl: true, includeTabBody: false, includeLocalStorage: false,
         targetIds: [], targetLocalStorageKeys: [],
+        customIcon: null, // Will store { icon16, icon48, icon128 } as base64 data URLs
+        useCustomIcon: false
     };
     let configData = {};
     let currentStep = 0;
@@ -65,7 +67,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let steps = [];
 
         if (!isBuilt) {
-            steps = [ renderIntroStep, renderStep1, renderStep2, renderStep3_DataSource ];
+            steps = [ renderIntroStep, renderStep1, renderStep2, renderStep2b_IconUpload, renderStep3_DataSource ];
             if (configData.includeTabBody) steps.push(renderStep4_FindPageData);
             if (configData.includeLocalStorage) steps.push(renderStep5_FindStorageData);
             // Always include test/preview step so users can test CORS and basic functionality
@@ -165,6 +167,85 @@ document.addEventListener('DOMContentLoaded', () => {
                 <small>Replace with actual demo GIF in Assets folder</small>
             </div>
         </div>`;
+    
+    // Helper function to resize image to specific dimensions
+    const resizeImage = (file, size) => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = size;
+                    canvas.height = size;
+                    const ctx = canvas.getContext('2d');
+                    
+                    // Use high-quality image rendering
+                    ctx.imageSmoothingEnabled = true;
+                    ctx.imageSmoothingQuality = 'high';
+                    
+                    // Calculate dimensions to maintain aspect ratio (center crop)
+                    const aspectRatio = img.width / img.height;
+                    let sourceX = 0, sourceY = 0, sourceWidth = img.width, sourceHeight = img.height;
+                    
+                    if (aspectRatio > 1) {
+                        // Image is wider than tall - crop width
+                        sourceWidth = img.height;
+                        sourceX = (img.width - sourceWidth) / 2;
+                    } else if (aspectRatio < 1) {
+                        // Image is taller than wide - crop height
+                        sourceHeight = img.width;
+                        sourceY = (img.height - sourceHeight) / 2;
+                    }
+                    
+                    // Draw the image centered and cropped
+                    ctx.drawImage(img, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, size, size);
+                    
+                    // Convert canvas to data URL
+                    resolve(canvas.toDataURL('image/png'));
+                };
+                img.onerror = reject;
+                img.src = e.target.result;
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+    };
+    
+    // Helper function to draw placeholder icon on a canvas element
+    const drawPlaceholderIcon = (canvasElement, letter = 'P') => {
+        const size = canvasElement.width;
+        const ctx = canvasElement.getContext('2d');
+        
+        // Draw a gradient background using custom palette
+        const gradient = ctx.createLinearGradient(0, 0, size, size);
+        gradient.addColorStop(0, '#182575'); // resolution-blue
+        gradient.addColorStop(1, '#232F9F'); // international-klein-blue
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, size, size);
+        
+        // Draw the first letter in white
+        ctx.fillStyle = 'white';
+        ctx.font = `bold ${size * 0.6}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(letter.toUpperCase(), size / 2, size / 2);
+    };
+    
+    // Helper function to render placeholder icon previews
+    const renderPlaceholderPreviews = () => {
+        const canvas16 = document.getElementById('placeholder-preview-16');
+        const canvas48 = document.getElementById('placeholder-preview-48');
+        const canvas128 = document.getElementById('placeholder-preview-128');
+        
+        // Get first letter from extension name, default to 'P'
+        const extName = configData.extName || 'Power App';
+        const firstLetter = extName.trim().charAt(0) || 'P';
+        
+        if (canvas16) drawPlaceholderIcon(canvas16, firstLetter);
+        if (canvas48) drawPlaceholderIcon(canvas48, firstLetter);
+        if (canvas128) drawPlaceholderIcon(canvas128, firstLetter);
+    };
 
     // --- RENDER FUNCTIONS ---
     const renderIntroStep = () => `
@@ -174,8 +255,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="hero-left">
                         <img src="Assets/magic-wand-wizard-svgrepo-com.svg" alt="Wizard Logo" class="hero-logo">
                         <h1 class="hero-title">Power App Chrome Extension Builder</h1>
-                        <p class="hero-subtitle">A step-by-step wizard to package your Power App into a browser extension.</p>
-                        <p class="hero-description">Transform your Power App into a powerful browser sidebar extension in minutes.</p>
+                        <p class="hero-description">Transform your Power App into a powerful browser sidebar extension in minutes. No coding required, no signup needed, completely free. Simply follow the wizard, customize your settings, and download your ready-to-install extension.</p>
                         <button id="hero-get-started-btn" class="hero-cta-btn">Get Started →</button>
                     </div>
                     <div class="hero-right">
@@ -233,6 +313,80 @@ document.addEventListener('DOMContentLoaded', () => {
                 <label for="extDescription">Extension Description</label>
                 <textarea id="extDescription" placeholder="A custom extension for my Power App">${configData.extDescription}</textarea>
                 <p class="description">A brief description of what your extension does.</p>
+            </div>
+        </div>`;
+    
+    const renderStep2b_IconUpload = () => `
+        <div class="wizard-step active">
+            <h2>Extension Icon</h2>
+            <p>Upload a custom PNG icon for your extension, or use the auto-generated placeholder.</p>
+            ${configData.extName ? `<p class="description" style="margin-top: -10px;"><em>Placeholder icon will use "<strong>${configData.extName.charAt(0).toUpperCase()}</strong>" from your extension name.</em></p>` : ''}
+            
+            <div class="icon-upload-section">
+                <div class="icon-choice-container">
+                    <label class="icon-choice-option ${!configData.useCustomIcon ? 'selected' : ''}">
+                        <input type="radio" name="iconChoice" value="placeholder" ${!configData.useCustomIcon ? 'checked' : ''}>
+                        <div class="icon-choice-content">
+                            <div class="icon-choice-icon">🎨</div>
+                            <div class="icon-choice-text">
+                                <strong>Use Placeholder Icon</strong>
+                                <small>Gradient with first letter${configData.extName ? ` (${configData.extName.charAt(0).toUpperCase()})` : ''}</small>
+                            </div>
+                        </div>
+                    </label>
+                    
+                    <label class="icon-choice-option ${configData.useCustomIcon ? 'selected' : ''}">
+                        <input type="radio" name="iconChoice" value="custom" ${configData.useCustomIcon ? 'checked' : ''}>
+                        <div class="icon-choice-content">
+                            <div class="icon-choice-icon">🖼️</div>
+                            <div class="icon-choice-text">
+                                <strong>Upload Custom Icon</strong>
+                                <small>PNG file, any size (auto-resized)</small>
+                            </div>
+                        </div>
+                    </label>
+                </div>
+                
+                <div id="placeholder-icon-preview" class="placeholder-icon-preview" style="display: ${!configData.useCustomIcon ? 'block' : 'none'};">
+                    <p class="description" style="margin-bottom: 15px;">Preview of the auto-generated gradient icon:</p>
+                    <div id="placeholder-preview-container" class="icon-preview-container">
+                        <div class="icon-preview-item">
+                            <canvas id="placeholder-preview-16" width="16" height="16"></canvas>
+                            <span>16x16</span>
+                        </div>
+                        <div class="icon-preview-item">
+                            <canvas id="placeholder-preview-48" width="48" height="48"></canvas>
+                            <span>48x48</span>
+                        </div>
+                        <div class="icon-preview-item">
+                            <canvas id="placeholder-preview-128" width="128" height="128"></canvas>
+                            <span>128x128</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="custom-icon-upload" class="custom-icon-upload" style="display: ${configData.useCustomIcon ? 'block' : 'none'};">
+                    <div class="form-group">
+                        <label for="iconFileInput">Choose PNG Icon</label>
+                        <input type="file" id="iconFileInput" accept="image/png,image/jpeg,image/jpg" class="file-input">
+                        <p class="description">Upload a square PNG or JPG. It will be automatically resized to 16x16, 48x48, and 128x128 pixels.</p>
+                    </div>
+                    
+                    <div id="icon-preview-container" class="icon-preview-container" style="display: ${configData.customIcon ? 'flex' : 'none'};">
+                        <div class="icon-preview-item">
+                            <img id="icon-preview-16" src="${configData.customIcon?.icon16 || ''}" alt="16x16 preview">
+                            <span>16x16</span>
+                        </div>
+                        <div class="icon-preview-item">
+                            <img id="icon-preview-48" src="${configData.customIcon?.icon48 || ''}" alt="48x48 preview">
+                            <span>48x48</span>
+                        </div>
+                        <div class="icon-preview-item">
+                            <img id="icon-preview-128" src="${configData.customIcon?.icon128 || ''}" alt="128x128 preview">
+                            <span>128x128</span>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>`;
     
@@ -484,6 +638,10 @@ Set(gblLocalStorage, ParseJSON(Param("tabLocalStorage")));</pre>
         
         try {
             // Helper function to generate a simple placeholder icon
+            // Get first letter from extension name for placeholder icon
+            const extName = configData.extName || 'Power App';
+            const firstLetter = extName.trim().charAt(0).toUpperCase() || 'P';
+            
             const generateIcon = (size) => {
                 return new Promise((resolve) => {
                     const canvas = document.createElement('canvas');
@@ -498,12 +656,12 @@ Set(gblLocalStorage, ParseJSON(Param("tabLocalStorage")));</pre>
                     ctx.fillStyle = gradient;
                     ctx.fillRect(0, 0, size, size);
                     
-                    // Draw a white "P" for Power App
+                    // Draw the first letter of the extension name
                     ctx.fillStyle = 'white';
                     ctx.font = `bold ${size * 0.6}px Arial`;
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
-                    ctx.fillText('P', size / 2, size / 2);
+                    ctx.fillText(firstLetter, size / 2, size / 2);
                     
                     canvas.toBlob(resolve, 'image/png');
                 });
@@ -523,12 +681,23 @@ Set(gblLocalStorage, ParseJSON(Param("tabLocalStorage")));</pre>
             });
             const [manifestTemplate, ...downloadedFiles] = await Promise.all([manifestPromise, ...filePromises]);
 
-            // Generate icon files
-            const [icon16, icon48, icon128] = await Promise.all([
-                generateIcon(16),
-                generateIcon(48),
-                generateIcon(128)
-            ]);
+            // Determine which icons to use (custom or generated)
+            let icon16, icon48, icon128;
+            if (configData.useCustomIcon && configData.customIcon) {
+                // Use custom uploaded icons (they're already base64 data URLs)
+                console.log('[PowerApp Ext-Builder] Using custom uploaded icons');
+                icon16 = configData.customIcon.icon16.split(',')[1]; // Remove data:image/png;base64, prefix
+                icon48 = configData.customIcon.icon48.split(',')[1];
+                icon128 = configData.customIcon.icon128.split(',')[1];
+            } else {
+                // Generate placeholder icons
+                console.log('[PowerApp Ext-Builder] Generating placeholder icons');
+                [icon16, icon48, icon128] = await Promise.all([
+                    generateIcon(16),
+                    generateIcon(48),
+                    generateIcon(128)
+                ]);
+            }
 
             const zip = new JSZip();
             
@@ -537,10 +706,10 @@ Set(gblLocalStorage, ParseJSON(Param("tabLocalStorage")));</pre>
                 zip.file(file.path, file.content);
             });
             
-            // Add generated icons to icons/ folder
-            zip.file('icons/icon16.png', icon16);
-            zip.file('icons/icon48.png', icon48);
-            zip.file('icons/icon128.png', icon128);
+            // Add icons to icons/ folder
+            zip.file('icons/icon16.png', icon16, { base64: configData.useCustomIcon });
+            zip.file('icons/icon48.png', icon48, { base64: configData.useCustomIcon });
+            zip.file('icons/icon128.png', icon128, { base64: configData.useCustomIcon });
 
             // Generate config.js matching the template structure
             const configObject = {
@@ -581,8 +750,22 @@ Set(gblLocalStorage, ParseJSON(Param("tabLocalStorage")));</pre>
             const configJsContent = `// [PowerApps Sidebar] Configuration File - Generated by PowerApp Ext-Builder\n\nexport const config = ${JSON.stringify(configObject, null, 2)};\n\nconsole.log('[PowerApps Sidebar] Configuration loaded:', config);`;
             zip.file("config.js", configJsContent);
 
+            // Update manifest with user-provided data and icon paths
             manifestTemplate.name = configData.extName || "Power App Extension";
             manifestTemplate.description = configData.extDescription || "A custom Power App extension.";
+            manifestTemplate.icons = {
+                "16": "icons/icon16.png",
+                "48": "icons/icon48.png",
+                "128": "icons/icon128.png"
+            };
+            // Also add icons to the action (toolbar button)
+            if (manifestTemplate.action) {
+                manifestTemplate.action.default_icon = {
+                    "16": "icons/icon16.png",
+                    "48": "icons/icon48.png",
+                    "128": "icons/icon128.png"
+                };
+            }
             zip.file("manifest.json", JSON.stringify(manifestTemplate, null, 2));
 
             const zipBlob = await zip.generateAsync({ type: "blob" });
@@ -684,6 +867,85 @@ Set(gblLocalStorage, ParseJSON(Param("tabLocalStorage")));</pre>
                 document.getElementById(targetTab)?.classList.add('active');
             });
         });
+        
+        // Handle icon choice radio buttons (Step 2b)
+        const iconChoiceRadios = document.querySelectorAll('input[name="iconChoice"]');
+        iconChoiceRadios.forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                const useCustom = e.target.value === 'custom';
+                configData.useCustomIcon = useCustom;
+                
+                // Update visual selection
+                document.querySelectorAll('.icon-choice-option').forEach(opt => opt.classList.remove('selected'));
+                e.target.closest('.icon-choice-option').classList.add('selected');
+                
+                // Show/hide appropriate preview sections
+                const uploadSection = document.getElementById('custom-icon-upload');
+                const placeholderSection = document.getElementById('placeholder-icon-preview');
+                
+                if (uploadSection) {
+                    uploadSection.style.display = useCustom ? 'block' : 'none';
+                }
+                if (placeholderSection) {
+                    placeholderSection.style.display = useCustom ? 'none' : 'block';
+                    // Render placeholder previews when switching to placeholder option
+                    if (!useCustom) {
+                        renderPlaceholderPreviews();
+                    }
+                }
+                
+                saveState();
+            });
+        });
+        
+        // Render placeholder icon previews on step load (Step 2b)
+        if (document.getElementById('placeholder-preview-16')) {
+            renderPlaceholderPreviews();
+        }
+        
+        // Handle icon file upload (Step 2b)
+        const iconFileInput = document.getElementById('iconFileInput');
+        if (iconFileInput) {
+            iconFileInput.addEventListener('change', async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                try {
+                    // Show loading state
+                    const previewContainer = document.getElementById('icon-preview-container');
+                    if (previewContainer) {
+                        previewContainer.style.opacity = '0.5';
+                    }
+                    
+                    // Resize to all three sizes
+                    const [icon16, icon48, icon128] = await Promise.all([
+                        resizeImage(file, 16),
+                        resizeImage(file, 48),
+                        resizeImage(file, 128)
+                    ]);
+                    
+                    // Store in config
+                    configData.customIcon = { icon16, icon48, icon128 };
+                    
+                    // Update preview
+                    document.getElementById('icon-preview-16').src = icon16;
+                    document.getElementById('icon-preview-48').src = icon48;
+                    document.getElementById('icon-preview-128').src = icon128;
+                    
+                    // Show preview container
+                    if (previewContainer) {
+                        previewContainer.style.display = 'flex';
+                        previewContainer.style.opacity = '1';
+                    }
+                    
+                    saveState();
+                    console.log('[PowerApp Ext-Builder] Custom icons generated successfully');
+                } catch (error) {
+                    console.error('[PowerApp Ext-Builder] Failed to process icon:', error);
+                    alert('Failed to process the icon image. Please try a different file.');
+                }
+            });
+        }
     };
     
     const updateNavButtons = () => {
