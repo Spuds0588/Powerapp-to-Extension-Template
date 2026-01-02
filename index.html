@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Power App Chrome Extension Builder</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Power App Chrome Extension Builder</h1>
+            <p>A step-by-step wizard to package your Power App into a browser extension.</p>
+        </header>
+        <main id="wizard-container">
+            <!-- Wizard steps will be dynamically injected here by app.js -->
+        </main>
+        <nav class="wizard-navigation">
+            <button id="prev-btn" class="nav-btn" disabled>Previous</button>
+            <button id="next-btn" class="nav-btn">Next</button>
+        </nav>
+        <footer>
+            <p>Built for the Power Platform Community</p>
+        </footer>
+    </div>
+    
+    <!-- Third-party libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+    <!-- Our application logic -->
+    <script src="app.js"></script>
+</body>
+</html>
