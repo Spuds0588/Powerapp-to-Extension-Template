@@ -23,11 +23,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const GITHUB_REPO_BASE_URL = "./Power Apps Sidebar Integration/";
 
     const defaultConfig = {
-        powerAppUrl: '', extName: '', extDescription: '',
+        powerAppUrl: '', extName: '', extDescription: '', extVersion: '1.0.0',
         includeTabUrl: true, includeTabBody: false, includeLocalStorage: false,
         targetIds: [], targetLocalStorageKeys: [],
         customIcon: null, // Will store { icon16, icon48, icon128 } as base64 data URLs
-        useCustomIcon: false
+        useCustomIcon: false,
+        // Triggers
+        onTabChange: false, onUrlChange: false, 
+        onTimerEnabled: false, onTimerInterval: 2000,
+        // Floating Button
+        floatingButtonEnabled: false, floatingButtonUrls: [],
+        floatingButtonPosition: 'top-center', floatingButtonText: '⚡ Open Sidebar',
+        floatingButtonTooltip: 'Open Power Apps Sidebar', floatingButtonColor: '#007bff',
+        // Sidebar
+        sidebarShowToolbar: true, sidebarPersistence: 'background'
     };
     let configData = {};
     let currentStep = 0;
@@ -70,8 +79,12 @@ document.addEventListener('DOMContentLoaded', () => {
             steps = [ renderIntroStep, renderStep1, renderStep2, renderStep2b_IconUpload, renderStep3_DataSource ];
             if (configData.includeTabBody) steps.push(renderStep4_FindPageData);
             if (configData.includeLocalStorage) steps.push(renderStep5_FindStorageData);
+            // Always include advanced configuration steps
+            steps.push(renderStep5b_Triggers);
+            steps.push(renderStep5c_FloatingButton);
+            steps.push(renderStep5d_Sidebar);
             // Always include test/preview step so users can test CORS and basic functionality
-            steps.push(renderStep6_TestAndSimulate);
+                steps.push(renderStep6_TestAndSimulate);
             steps.push(renderStep7_Review);
             steps.push(renderStep10_Build);
         } else {
@@ -141,6 +154,7 @@ document.addEventListener('DOMContentLoaded', () => {
             [renderStep1, () => configData.powerAppUrl = getValue('powerAppUrl')],
             [renderStep2, () => {
                 configData.extName = getValue('extName');
+                configData.extVersion = getValue('extVersion');
                 configData.extDescription = getValue('extDescription');
             }],
             [renderStep3_DataSource, () => {
@@ -149,7 +163,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 configData.includeLocalStorage = getChecked('includeLocalStorage');
             }],
             [renderStep4_FindPageData, () => configData.targetIds = getArrayFromText('targetIds')],
-            [renderStep5_FindStorageData, () => configData.targetLocalStorageKeys = getArrayFromText('targetLocalStorageKeys')]
+            [renderStep5_FindStorageData, () => configData.targetLocalStorageKeys = getArrayFromText('targetLocalStorageKeys')],
+            [renderStep5b_Triggers, () => {
+                configData.onTabChange = getChecked('onTabChange');
+                configData.onUrlChange = getChecked('onUrlChange');
+                configData.onTimerEnabled = getChecked('onTimerEnabled');
+                configData.onTimerInterval = parseInt(getValue('onTimerInterval')) || 2000;
+            }],
+            [renderStep5c_FloatingButton, () => {
+                configData.floatingButtonEnabled = getChecked('floatingButtonEnabled');
+                configData.floatingButtonUrls = getArrayFromText('floatingButtonUrls');
+                configData.floatingButtonPosition = getValue('floatingButtonPosition');
+                configData.floatingButtonText = getValue('floatingButtonText');
+                configData.floatingButtonTooltip = getValue('floatingButtonTooltip');
+                configData.floatingButtonColor = getValue('floatingButtonColor');
+            }],
+            [renderStep5d_Sidebar, () => {
+                configData.sidebarShowToolbar = getChecked('sidebarShowToolbar');
+                configData.sidebarPersistence = getValue('sidebarPersistence');
+            }]
         ]);
 
         const saveAction = saveDataMap.get(wizardSteps[currentStep]);
@@ -257,6 +289,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         <h1 class="hero-title">Power App Chrome Extension Builder</h1>
                         <p class="hero-description">Transform your Power App into a powerful browser sidebar extension in minutes. No coding required, no signup needed, completely free. Simply follow the wizard, customize your settings, and download your ready-to-install extension.</p>
                         <button id="hero-get-started-btn" class="hero-cta-btn">Get Started →</button>
+                        <div class="hero-import-section">
+                            <p class="hero-import-text">Or update an existing extension:</p>
+                            <label for="import-extension-file" class="import-file-label">
+                                📁 Import Extension ZIP
+                                <input type="file" id="import-extension-file" accept=".zip" style="display: none;">
+                            </label>
+                        </div>
                     </div>
                     <div class="hero-right">
                         <div class="browser-mockup">
@@ -303,11 +342,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const renderStep2 = () => `
         <div class="wizard-step active">
             <h2>Extension Identity</h2>
-            <p>Give your extension a name and description. These will be visible in the browser.</p>
+            <p>Give your extension a name, version, and description. These will be visible in the browser.</p>
             <div class="form-group">
                 <label for="extName">Extension Name *</label>
                 <input type="text" id="extName" placeholder="My Power App Extension" value="${configData.extName}" required>
                 <p class="description">This will appear as the extension name in Chrome.</p>
+            </div>
+            <div class="form-group">
+                <label for="extVersion">Version Number *</label>
+                <input type="text" id="extVersion" placeholder="1.0.0" value="${configData.extVersion}" required pattern="[0-9]+(\\.[0-9]+)*">
+                <p class="description">Semantic version number (e.g., 1.0.0, 1.2.3, 2.0). Increment this when updating your extension.</p>
             </div>
             <div class="form-group">
                 <label for="extDescription">Extension Description</label>
@@ -366,25 +410,32 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
                 
                 <div id="custom-icon-upload" class="custom-icon-upload" style="display: ${configData.useCustomIcon ? 'block' : 'none'};">
+                    ${configData.customIcon ? `
+                        <div class="form-group">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin: 0 0 15px 0; padding: 12px; background: #e8f5e9; border-left: 4px solid #4caf50; border-radius: 4px; color: #2e7d32;">
+                                <span>✅ <strong>Existing icons loaded</strong> - Keep them or upload new ones below.</span>
+                                <button type="button" id="clear-custom-icons-btn" style="padding: 6px 12px; font-size: 0.85rem; background: #fff; color: #d32f2f; border: 1px solid #d32f2f; border-radius: 4px; cursor: pointer;">Clear Icons</button>
+                            </div>
+                        </div>
+                        <div id="icon-preview-container" class="icon-preview-container" style="display: flex; margin-bottom: 20px;">
+                            <div class="icon-preview-item">
+                                <img id="icon-preview-16" src="${configData.customIcon.icon16}" alt="16x16 preview">
+                                <span>16x16</span>
+                            </div>
+                            <div class="icon-preview-item">
+                                <img id="icon-preview-48" src="${configData.customIcon.icon48}" alt="48x48 preview">
+                                <span>48x48</span>
+                            </div>
+                            <div class="icon-preview-item">
+                                <img id="icon-preview-128" src="${configData.customIcon.icon128}" alt="128x128 preview">
+                                <span>128x128</span>
+                            </div>
+                        </div>
+                    ` : ''}
                     <div class="form-group">
-                        <label for="iconFileInput">Choose PNG Icon</label>
+                        <label for="iconFileInput">${configData.customIcon ? 'Replace with New Icon (Optional)' : 'Choose PNG Icon'}</label>
                         <input type="file" id="iconFileInput" accept="image/png,image/jpeg,image/jpg" class="file-input">
-                        <p class="description">Upload a square PNG or JPG. It will be automatically resized to 16x16, 48x48, and 128x128 pixels.</p>
-                    </div>
-                    
-                    <div id="icon-preview-container" class="icon-preview-container" style="display: ${configData.customIcon ? 'flex' : 'none'};">
-                        <div class="icon-preview-item">
-                            <img id="icon-preview-16" src="${configData.customIcon?.icon16 || ''}" alt="16x16 preview">
-                            <span>16x16</span>
-                        </div>
-                        <div class="icon-preview-item">
-                            <img id="icon-preview-48" src="${configData.customIcon?.icon48 || ''}" alt="48x48 preview">
-                            <span>48x48</span>
-                        </div>
-                        <div class="icon-preview-item">
-                            <img id="icon-preview-128" src="${configData.customIcon?.icon128 || ''}" alt="128x128 preview">
-                            <span>128x128</span>
-                        </div>
+                        <p class="description">${configData.customIcon ? 'Upload a new icon to replace the existing one, or leave it to keep the current icons.' : 'Upload a square PNG or JPG. It will be automatically resized to 16x16, 48x48, and 128x128 pixels.'}</p>
                     </div>
                 </div>
             </div>
@@ -429,6 +480,103 @@ document.addEventListener('DOMContentLoaded', () => {
                 <label for="targetLocalStorageKeys">Paste your Local Storage Keys here</label>
                 <textarea id="targetLocalStorageKeys" placeholder="user-token, session-id, preference">${configData.targetLocalStorageKeys.join(', ')}</textarea>
                 <p class="description">Separate keys with commas.</p>
+            </div>
+        </div>`;
+    
+    const renderStep5b_Triggers = () => `
+        <div class="wizard-step active">
+            <h2>Update Triggers</h2>
+            <p>Configure when the extension should automatically update the Power App with new data.</p>
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="onTabChange" ${configData.onTabChange ? 'checked' : ''}>
+                    <strong>Update on Tab Change</strong> - Refresh when switching browser tabs
+                </label>
+                <p class="description">The Power App will update whenever you switch to a different tab.</p>
+            </div>
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="onUrlChange" ${configData.onUrlChange ? 'checked' : ''}>
+                    <strong>Update on URL Change</strong> - Refresh when the page URL changes
+                </label>
+                <p class="description">Useful for Single Page Applications where the URL changes without full page reloads.</p>
+            </div>
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="onTimerEnabled" ${configData.onTimerEnabled ? 'checked' : ''}>
+                    <strong>Auto-Update on Timer</strong> - Continuously refresh at regular intervals
+                </label>
+                <p class="description">The Power App will automatically update every few seconds.</p>
+            </div>
+            <div class="form-group" id="timer-interval-group" style="margin-left: 30px; display: ${configData.onTimerEnabled ? 'block' : 'none'};">
+                <label for="onTimerInterval">Update Interval (milliseconds)</label>
+                <input type="number" id="onTimerInterval" value="${configData.onTimerInterval}" min="1000" max="60000" step="1000">
+                <p class="description">Recommended: 2000ms (2 seconds). Lower values may impact performance.</p>
+            </div>
+        </div>`;
+    
+    const renderStep5c_FloatingButton = () => `
+        <div class="wizard-step active">
+            <h2>Floating Button (Optional)</h2>
+            <p>Add a floating button overlay to specific web pages that opens the sidebar when clicked.</p>
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="floatingButtonEnabled" ${configData.floatingButtonEnabled ? 'checked' : ''}>
+                    <strong>Enable Floating Button</strong>
+                </label>
+                <p class="description">Show a customizable floating button on specified pages.</p>
+            </div>
+            <div id="floating-button-config" style="display: ${configData.floatingButtonEnabled ? 'block' : 'none'};">
+                <div class="form-group">
+                    <label for="floatingButtonUrls">Target URLs (comma-separated patterns)</label>
+                    <textarea id="floatingButtonUrls" placeholder="https://myapp.com/*, https://*.company.com/*">${configData.floatingButtonUrls.join(', ')}</textarea>
+                    <p class="description">Use wildcards (*) to match multiple URLs. Example: https://example.com/*</p>
+                </div>
+                <div class="form-group">
+                    <label for="floatingButtonPosition">Button Position</label>
+                    <select id="floatingButtonPosition">
+                        <option value="top-left" ${configData.floatingButtonPosition === 'top-left' ? 'selected' : ''}>Top Left</option>
+                        <option value="top-center" ${configData.floatingButtonPosition === 'top-center' ? 'selected' : ''}>Top Center</option>
+                        <option value="top-right" ${configData.floatingButtonPosition === 'top-right' ? 'selected' : ''}>Top Right</option>
+                        <option value="bottom-left" ${configData.floatingButtonPosition === 'bottom-left' ? 'selected' : ''}>Bottom Left</option>
+                        <option value="bottom-center" ${configData.floatingButtonPosition === 'bottom-center' ? 'selected' : ''}>Bottom Center</option>
+                        <option value="bottom-right" ${configData.floatingButtonPosition === 'bottom-right' ? 'selected' : ''}>Bottom Right</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="floatingButtonText">Button Text</label>
+                    <input type="text" id="floatingButtonText" value="${configData.floatingButtonText}" placeholder="⚡ Open Sidebar">
+                    <p class="description">Can use emojis and text. Keep it short!</p>
+                </div>
+                <div class="form-group">
+                    <label for="floatingButtonTooltip">Tooltip Text</label>
+                    <input type="text" id="floatingButtonTooltip" value="${configData.floatingButtonTooltip}" placeholder="Open Power Apps Sidebar">
+                </div>
+                <div class="form-group">
+                    <label for="floatingButtonColor">Button Color</label>
+                    <input type="color" id="floatingButtonColor" value="${configData.floatingButtonColor}">
+                </div>
+            </div>
+        </div>`;
+    
+    const renderStep5d_Sidebar = () => `
+        <div class="wizard-step active">
+            <h2>Sidebar Settings</h2>
+            <p>Configure how the sidebar behaves in your browser.</p>
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="sidebarShowToolbar" ${configData.sidebarShowToolbar ? 'checked' : ''}>
+                    <strong>Show Toolbar</strong>
+                </label>
+                <p class="description">Display a toolbar at the top of the sidebar with a refresh button and status indicator.</p>
+            </div>
+            <div class="form-group">
+                <label for="sidebarPersistence">Sidebar Persistence</label>
+                <select id="sidebarPersistence">
+                    <option value="background" ${configData.sidebarPersistence === 'background' ? 'selected' : ''}>Keep Running in Background</option>
+                    <option value="shutdown" ${configData.sidebarPersistence === 'shutdown' ? 'selected' : ''}>Shut Down When Closed</option>
+                </select>
+                <p class="description"><strong>Background:</strong> Sidebar stays active when closed (faster to reopen). <strong>Shutdown:</strong> Fully stops when closed (uses less memory).</p>
             </div>
         </div>`;
     
@@ -516,18 +664,45 @@ Set(gblLocalStorage, ParseJSON(Param("tabLocalStorage")));</pre>
         <div class="wizard-step active">
             <h2>Review Your Configuration</h2>
             <p>Please review your settings before building the extension.</p>
+            
             <h3>Extension Details</h3>
             <p><strong>Name:</strong> ${configData.extName || '(Not set)'}</p>
+            <p><strong>Version:</strong> ${configData.extVersion || '1.0.0'}</p>
             <p><strong>Description:</strong> ${configData.extDescription || '(Not set)'}</p>
             <p><strong>Power App URL:</strong> ${configData.powerAppUrl || '(Not set)'}</p>
+            <p><strong>Icon:</strong> ${configData.useCustomIcon ? 'Custom uploaded icon' : 'Auto-generated placeholder'}</p>
+            
             <h3>Data Sources</h3>
             <ul>
                 ${configData.includeTabUrl ? '<li>✓ Current Tab URL</li>' : ''}
-                ${configData.includeTabBody ? `<li>✓ Page Data (${configData.targetIds.length} elements)</li>` : ''}
-                ${configData.includeLocalStorage ? `<li>✓ Local Storage (${configData.targetLocalStorageKeys.length} keys)</li>` : ''}
+                ${configData.includeTabBody ? `<li>✓ Page Data (${configData.targetIds.length} element${configData.targetIds.length !== 1 ? 's' : ''})</li>` : ''}
+                ${configData.includeLocalStorage ? `<li>✓ Local Storage (${configData.targetLocalStorageKeys.length} key${configData.targetLocalStorageKeys.length !== 1 ? 's' : ''})</li>` : ''}
                 ${!configData.includeTabUrl && !configData.includeTabBody && !configData.includeLocalStorage ? '<li>No data sources selected</li>' : ''}
             </ul>
-            <p><em>If anything looks incorrect, use the Previous button to go back and make changes.</em></p>
+            
+            <h3>Update Triggers</h3>
+            <ul>
+                ${configData.onTabChange ? '<li>✓ Update on Tab Change</li>' : ''}
+                ${configData.onUrlChange ? '<li>✓ Update on URL Change</li>' : ''}
+                ${configData.onTimerEnabled ? `<li>✓ Auto-Update on Timer (every ${configData.onTimerInterval}ms)</li>` : ''}
+                ${!configData.onTabChange && !configData.onUrlChange && !configData.onTimerEnabled ? '<li>No automatic triggers enabled</li>' : ''}
+            </ul>
+            
+            ${configData.floatingButtonEnabled ? `
+                <h3>Floating Button</h3>
+                <p><strong>Enabled:</strong> Yes</p>
+                <p><strong>Position:</strong> ${configData.floatingButtonPosition}</p>
+                <p><strong>Text:</strong> ${configData.floatingButtonText}</p>
+                <p><strong>Tooltip:</strong> ${configData.floatingButtonTooltip}</p>
+                <p><strong>Color:</strong> <span style="display: inline-block; width: 20px; height: 20px; background-color: ${configData.floatingButtonColor}; border: 1px solid #ccc; vertical-align: middle; border-radius: 3px;"></span> ${configData.floatingButtonColor}</p>
+                <p><strong>Target URLs:</strong> ${configData.floatingButtonUrls.length > 0 ? configData.floatingButtonUrls.join(', ') : '(None specified)'}</p>
+            ` : ''}
+            
+            <h3>Sidebar Settings</h3>
+            <p><strong>Show Toolbar:</strong> ${configData.sidebarShowToolbar ? 'Yes' : 'No'}</p>
+            <p><strong>Persistence:</strong> ${configData.sidebarPersistence === 'background' ? 'Keep Running in Background' : 'Shut Down When Closed'}</p>
+            
+            <p style="margin-top: 30px;"><em>If anything looks incorrect, use the Previous button to go back and make changes.</em></p>
         </div>`;
     
     const renderStep10_Build = () => `
@@ -594,7 +769,7 @@ Set(gblLocalStorage, ParseJSON(Param("tabLocalStorage")));</pre>
                 <p><strong>Cons:</strong> Requires technical knowledge, shows a warning banner, not ideal for large teams</p>
             </div>
             <div id="corporate" class="distro-tab-content">
-                <h3>Deploy within your Organization</h3>
+                 <h3>Deploy within your Organization</h3>
                 <p><strong>Best for:</strong> Official, secure deployment to employees without manual steps.</p>
                 <p>This method requires your IT department's involvement. Here's what you need to do:</p>
                 <ol>
@@ -722,24 +897,24 @@ Set(gblLocalStorage, ParseJSON(Param("tabLocalStorage")));</pre>
                     targetLocalStorageKeys: configData.targetLocalStorageKeys
                 },
                 triggers: {
-                    onTabChange: false,
-                    onUrlChange: false,
+                    onTabChange: configData.onTabChange,
+                    onUrlChange: configData.onUrlChange,
                     onTimer: {
-                        enabled: false,
-                        interval: 2000
+                        enabled: configData.onTimerEnabled,
+                        interval: configData.onTimerInterval
                     }
                 },
                 floatingButton: {
-                    enabled: false,
-                    targetUrls: [],
-                    position: "top-center",
-                    text: "⚡ Open Power App",
-                    tooltip: "Open Power Apps Sidebar",
-                    color: "#007bff"
+                    enabled: configData.floatingButtonEnabled,
+                    targetUrls: configData.floatingButtonUrls,
+                    position: configData.floatingButtonPosition,
+                    text: configData.floatingButtonText,
+                    tooltip: configData.floatingButtonTooltip,
+                    color: configData.floatingButtonColor
                 },
                 sidebar: {
-                    showToolbar: true,
-                    persistence: "background"
+                    showToolbar: configData.sidebarShowToolbar,
+                    persistence: configData.sidebarPersistence
                 },
                 manualRefreshButton: {
                     enabled: false,
@@ -752,6 +927,7 @@ Set(gblLocalStorage, ParseJSON(Param("tabLocalStorage")));</pre>
 
             // Update manifest with user-provided data and icon paths
             manifestTemplate.name = configData.extName || "Power App Extension";
+            manifestTemplate.version = configData.extVersion || "1.0.0";
             manifestTemplate.description = configData.extDescription || "A custom Power App extension.";
             manifestTemplate.icons = {
                 "16": "icons/icon16.png",
@@ -806,6 +982,134 @@ Set(gblLocalStorage, ParseJSON(Param("tabLocalStorage")));</pre>
                     buildWizardSteps();
                     renderCurrentStep();
                     saveState();
+                }
+            });
+        }
+        
+        // Handle import extension file on intro slide
+        const importFileInput = document.getElementById('import-extension-file');
+        if (importFileInput) {
+            importFileInput.addEventListener('change', async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                try {
+                    console.log('[PowerApp Ext-Builder] Importing extension from ZIP...');
+                    const arrayBuffer = await file.arrayBuffer();
+                    const zip = await JSZip.loadAsync(arrayBuffer);
+                    
+                    // Extract manifest.json
+                    const manifestFile = zip.file('manifest.json');
+                    if (!manifestFile) {
+                        alert('Invalid extension file: manifest.json not found.');
+                        return;
+                    }
+                    const manifestText = await manifestFile.async('text');
+                    const manifest = JSON.parse(manifestText);
+                    
+                    // Extract config.js
+                    const configFile = zip.file('config.js');
+                    if (!configFile) {
+                        alert('Invalid extension file: config.js not found.');
+                        return;
+                    }
+                    const configText = await configFile.async('text');
+                    
+                    // Parse config.js (it's an ES module export)
+                    // Extract the JSON object between "export const config = " and ";\n\nconsole.log"
+                    const startMarker = 'export const config = ';
+                    const endMarker = ';\n\nconsole.log';
+                    
+                    const startIndex = configText.indexOf(startMarker);
+                    const endIndex = configText.indexOf(endMarker);
+                    
+                    if (startIndex === -1 || endIndex === -1) {
+                        alert('Invalid extension file: Could not parse config.js');
+                        return;
+                    }
+                    
+                    const configJsonStr = configText.substring(startIndex + startMarker.length, endIndex);
+                    const config = JSON.parse(configJsonStr);
+                    
+                    // Extract icons if they exist
+                    let customIcon = null;
+                    const icon16File = zip.file('icons/icon16.png');
+                    const icon48File = zip.file('icons/icon48.png');
+                    const icon128File = zip.file('icons/icon128.png');
+                    
+                    if (icon16File && icon48File && icon128File) {
+                        const icon16 = await icon16File.async('base64');
+                        const icon48 = await icon48File.async('base64');
+                        const icon128 = await icon128File.async('base64');
+                        
+                        customIcon = {
+                            icon16: `data:image/png;base64,${icon16}`,
+                            icon48: `data:image/png;base64,${icon48}`,
+                            icon128: `data:image/png;base64,${icon128}`
+                        };
+                    }
+                    
+                    // Populate configData from imported files
+                    configData.powerAppUrl = config.powerAppUrl || '';
+                    configData.extName = manifest.name || '';
+                    configData.extVersion = manifest.version || '1.0.0';
+                    configData.extDescription = manifest.description || '';
+                    configData.includeTabUrl = config.parameters?.includeTabUrl || false;
+                    configData.includeTabBody = config.parameters?.includeTabBody || false;
+                    configData.includeLocalStorage = config.parameters?.includeLocalStorage || false;
+                    configData.targetIds = config.parameters?.targetIds || [];
+                    configData.targetLocalStorageKeys = config.parameters?.targetLocalStorageKeys || [];
+                    configData.customIcon = customIcon;
+                    configData.useCustomIcon = !!customIcon;
+                    // Triggers
+                    configData.onTabChange = config.triggers?.onTabChange || false;
+                    configData.onUrlChange = config.triggers?.onUrlChange || false;
+                    configData.onTimerEnabled = config.triggers?.onTimer?.enabled || false;
+                    configData.onTimerInterval = config.triggers?.onTimer?.interval || 2000;
+                    // Floating Button
+                    configData.floatingButtonEnabled = config.floatingButton?.enabled || false;
+                    configData.floatingButtonUrls = config.floatingButton?.targetUrls || [];
+                    configData.floatingButtonPosition = config.floatingButton?.position || 'top-center';
+                    configData.floatingButtonText = config.floatingButton?.text || '⚡ Open Sidebar';
+                    configData.floatingButtonTooltip = config.floatingButton?.tooltip || 'Open Power Apps Sidebar';
+                    configData.floatingButtonColor = config.floatingButton?.color || '#007bff';
+                    // Sidebar
+                    configData.sidebarShowToolbar = config.sidebar?.showToolbar !== false; // Default true
+                    configData.sidebarPersistence = config.sidebar?.persistence || 'background';
+                    
+                    // Save state and move to first configuration step
+                    saveState();
+                    currentStep = 1; // Skip intro, go to first real step
+                    buildWizardSteps();
+                    renderCurrentStep();
+                    
+                    alert('Extension imported successfully! Review and update your settings, then build a new version.');
+                    console.log('[PowerApp Ext-Builder] Extension imported successfully');
+                } catch (error) {
+                    console.error('[PowerApp Ext-Builder] Failed to import extension:', error);
+                    alert(`Failed to import extension: ${error.message}. Please ensure you're uploading a valid extension ZIP file.`);
+                }
+            });
+        }
+        
+        // Handle timer enabled checkbox (Step 5b)
+        const onTimerEnabledCheckbox = document.getElementById('onTimerEnabled');
+        if (onTimerEnabledCheckbox) {
+            onTimerEnabledCheckbox.addEventListener('change', (e) => {
+                const intervalGroup = document.getElementById('timer-interval-group');
+                if (intervalGroup) {
+                    intervalGroup.style.display = e.target.checked ? 'block' : 'none';
+                }
+            });
+        }
+        
+        // Handle floating button enabled checkbox (Step 5c)
+        const floatingButtonEnabledCheckbox = document.getElementById('floatingButtonEnabled');
+        if (floatingButtonEnabledCheckbox) {
+            floatingButtonEnabledCheckbox.addEventListener('change', (e) => {
+                const floatingButtonConfig = document.getElementById('floating-button-config');
+                if (floatingButtonConfig) {
+                    floatingButtonConfig.style.display = e.target.checked ? 'block' : 'none';
                 }
             });
         }
@@ -903,6 +1207,19 @@ Set(gblLocalStorage, ParseJSON(Param("tabLocalStorage")));</pre>
             renderPlaceholderPreviews();
         }
         
+        // Handle clear custom icons button (Step 2b)
+        const clearIconsBtn = document.getElementById('clear-custom-icons-btn');
+        if (clearIconsBtn) {
+            clearIconsBtn.addEventListener('click', () => {
+                if (confirm('Remove the current custom icons? You can switch to the placeholder icon option instead.')) {
+                    configData.customIcon = null;
+                    saveState();
+                    // Re-render the step to update the UI
+                    renderCurrentStep();
+                }
+            });
+        }
+        
         // Handle icon file upload (Step 2b)
         const iconFileInput = document.getElementById('iconFileInput');
         if (iconFileInput) {
@@ -911,11 +1228,7 @@ Set(gblLocalStorage, ParseJSON(Param("tabLocalStorage")));</pre>
                 if (!file) return;
                 
                 try {
-                    // Show loading state
-                    const previewContainer = document.getElementById('icon-preview-container');
-                    if (previewContainer) {
-                        previewContainer.style.opacity = '0.5';
-                    }
+                    console.log('[PowerApp Ext-Builder] Processing uploaded icon...');
                     
                     // Resize to all three sizes
                     const [icon16, icon48, icon128] = await Promise.all([
@@ -927,19 +1240,11 @@ Set(gblLocalStorage, ParseJSON(Param("tabLocalStorage")));</pre>
                     // Store in config
                     configData.customIcon = { icon16, icon48, icon128 };
                     
-                    // Update preview
-                    document.getElementById('icon-preview-16').src = icon16;
-                    document.getElementById('icon-preview-48').src = icon48;
-                    document.getElementById('icon-preview-128').src = icon128;
-                    
-                    // Show preview container
-                    if (previewContainer) {
-                        previewContainer.style.display = 'flex';
-                        previewContainer.style.opacity = '1';
-                    }
-                    
                     saveState();
                     console.log('[PowerApp Ext-Builder] Custom icons generated successfully');
+                    
+                    // Re-render the step to show the new icons
+                    renderCurrentStep();
                 } catch (error) {
                     console.error('[PowerApp Ext-Builder] Failed to process icon:', error);
                     alert('Failed to process the icon image. Please try a different file.');
@@ -949,13 +1254,18 @@ Set(gblLocalStorage, ParseJSON(Param("tabLocalStorage")));</pre>
     };
     
     const updateNavButtons = () => {
-        prevBtn.disabled = currentStep === 0;
-        
         // Check if we're on the intro step
         const isOnIntroStep = !isBuilt && currentStep === 0;
         
         // Check if we're on the final build step
         const isOnBuildStep = wizardSteps[currentStep] === renderStep10_Build;
+        
+        // Check if we're on the final distribution guide step
+        const isOnFinalStep = isBuilt && currentStep === wizardSteps.length - 1;
+        
+        // Allow going back on all steps except intro (unless already built)
+        // If extension is built, allow going back from distribution guide to tweak settings
+        prevBtn.disabled = currentStep === 0 && !isBuilt;
         
         if (isOnIntroStep) {
             nextBtn.textContent = 'Get Started →';
@@ -965,9 +1275,11 @@ Set(gblLocalStorage, ParseJSON(Param("tabLocalStorage")));</pre>
             nextBtn.textContent = 'Build & Download';
             nextBtn.disabled = false;
             nextBtn.style.visibility = 'visible';
-        } else if (isBuilt && currentStep === wizardSteps.length - 1) {
-            // On the final distribution guide step - hide the Next button
-            nextBtn.style.visibility = 'hidden';
+        } else if (isOnFinalStep) {
+            // On the final distribution guide step - replace Next button with Start Over
+            nextBtn.textContent = '🔄 Start Over';
+            nextBtn.disabled = false;
+            nextBtn.style.visibility = 'visible';
         } else {
             nextBtn.textContent = 'Next';
             nextBtn.disabled = false;
@@ -979,6 +1291,18 @@ Set(gblLocalStorage, ParseJSON(Param("tabLocalStorage")));</pre>
         // Check if we're on the build step
         const isOnBuildStep = wizardSteps[currentStep] === renderStep10_Build;
         
+        // Check if we're on the final step with "Start Over" button
+        const isOnFinalStep = isBuilt && currentStep === wizardSteps.length - 1;
+
+        if (isOnFinalStep) {
+            // Handle "Start Over" from the final step
+            if (confirm('Start over with a new extension? This will clear your current configuration.')) {
+                localStorage.removeItem('powerAppBuilderState');
+                location.reload();
+            }
+            return;
+        }
+
         if (isOnBuildStep) {
             handleBuild();
             return;
@@ -1004,6 +1328,14 @@ Set(gblLocalStorage, ParseJSON(Param("tabLocalStorage")));</pre>
         
         if (currentStep > 0) {
             currentStep--;
+            
+            // If we're going backwards from the distribution guide (after building),
+            // we need to reset the wizard to allow re-configuration
+            if (isBuilt && currentStep < wizardSteps.length - 1) {
+                isBuilt = false;
+                buildWizardSteps(); // Rebuild to show configuration steps instead of distribution guide
+            }
+            
             const needsRebuild = wizardSteps[currentStep] === renderStep3_DataSource;
             if (needsRebuild) {
                 buildWizardSteps();
