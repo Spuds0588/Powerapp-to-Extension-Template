@@ -1,5 +1,7 @@
 # Power App to Browser Extension Template
 
+[Try Build Wizard Here](https://spuds0588.github.io/Powerapp-to-Extension-Template/)
+
 ## 1. Overview
 
 This repository provides a production-ready template for embedding a Microsoft Power App into a browser's side panel. It acts as a powerful bridge, allowing you to create a seamless enhancement layer over existing web applications.
